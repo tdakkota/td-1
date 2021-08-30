@@ -87,6 +87,11 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 				OutSeq:        0,
 				Key:           key,
 			}
+
+			if err := m.sendLayer(ctx, chat); err != nil {
+				return 0, xerrors.Errorf("notify layer: %w", err)
+			}
+
 			return chat.ID, m.storage.Save(ctx, chat)
 		case *tg.EncryptedChatDiscarded:
 			return 0, &ChatDiscardedError{Chat: c}

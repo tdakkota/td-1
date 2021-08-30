@@ -58,6 +58,11 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 			OutSeq:        0,
 			Key:           key,
 		}
+
+		if err := m.sendLayer(ctx, accepted); err != nil {
+			return Chat{}, xerrors.Errorf("notify layer: %w", err)
+		}
+
 		return accepted, nil
 	case *tg.EncryptedChatDiscarded:
 		return Chat{}, &ChatDiscardedError{Chat: chat}
