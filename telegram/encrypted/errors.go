@@ -6,7 +6,7 @@ import (
 	"github.com/gotd/td/tg"
 )
 
-// ChatDiscardedError returned when other parity discarded encrypted chat during creation.
+// ChatDiscardedError returned when other party discarded encrypted chat during creation.
 type ChatDiscardedError struct {
 	Chat *tg.EncryptedChatDiscarded
 }

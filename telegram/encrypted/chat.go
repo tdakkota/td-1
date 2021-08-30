@@ -34,7 +34,7 @@ type Chat struct {
 	// OutSeq is an outgoing message sequence.
 	// InSeq stored as total number of all sent messages.
 	OutSeq int
-	// HisInSeq is an incoming message sequence of other parity.
+	// HisInSeq is an incoming message sequence of other party.
 	// Need for security checks.
 	HisInSeq int
 

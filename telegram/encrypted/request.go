@@ -75,7 +75,7 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 
 			if getKeyFingerprint(key) != c.KeyFingerprint {
 				err := xerrors.New("key fingerprint mismatch")
-				return 0, multierr.Append(err, m.discardChat(ctx, chatID))
+				return 0, multierr.Append(err, m.DiscardChat(ctx, chatID, false))
 			}
 
 			chat := Chat{
