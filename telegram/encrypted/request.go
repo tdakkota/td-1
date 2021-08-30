@@ -68,7 +68,9 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 
 			// key := pow(g_b, a) mod dh_prime
 			k := crypto.Key{}
-			big.NewInt(0).Exp(gB, a, dhPrime).FillBytes(k[:])
+			if !crypto.FillBytes(big.NewInt(0).Exp(gB, a, dhPrime), k[:]) {
+				return 0, xerrors.New("auth key is too big")
+			}
 			key := k.WithID()
 
 			if getKeyFingerprint(key) != c.KeyFingerprint {
@@ -84,7 +86,9 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 				AdminID:       c.AdminID,
 				ParticipantID: c.ParticipantID,
 				Originator:    true,
+				InSeq:         0,
 				OutSeq:        0,
+				HisInSeq:      0,
 				Key:           key,
 			}
 

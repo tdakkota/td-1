@@ -30,7 +30,10 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 	gA := big.NewInt(0).SetBytes(req.GA)
 	// key := pow(g_a, b) mod dh_prime
 	k := crypto.Key{}
-	big.NewInt(0).Exp(gA, b, dhPrime).FillBytes(k[:])
+
+	if !crypto.FillBytes(big.NewInt(0).Exp(gA, b, dhPrime), k[:]) {
+		return Chat{}, xerrors.New("auth key is too big")
+	}
 	key := k.WithID()
 
 	c, err := m.raw.MessagesAcceptEncryption(ctx, &tg.MessagesAcceptEncryptionRequest{
@@ -55,7 +58,9 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 			AdminID:       chat.AdminID,
 			ParticipantID: chat.ParticipantID,
 			Originator:    false,
+			InSeq:         0,
 			OutSeq:        0,
+			HisInSeq:      0,
 			Key:           key,
 		}
 
