@@ -31,6 +31,9 @@ type dhConfig struct {
 	set     bool
 }
 
+// getDHConfig requests Diffie-Hellman protocol config.
+//
+// See https://core.telegram.org/api/end-to-end#sending-a-request.
 func (m *Manager) getDHConfig(ctx context.Context) (dhConfig, error) {
 	m.cfgMux.Lock()
 	defer m.cfgMux.Unlock()
@@ -56,13 +59,19 @@ func (m *Manager) getDHConfig(ctx context.Context) (dhConfig, error) {
 			return dhConfig{}, xerrors.Errorf("check DH: %w", err)
 		}
 
+		wasSet := m.cfg.set
 		m.cfg = dhConfig{
 			G:       cfg.G,
 			GBig:    big.NewInt(int64(cfg.G)),
 			P:       p,
 			Version: cfg.Version,
+			set:     true,
 		}
-		m.logger.Debug("DH Config updated", zap.Int("version", cfg.Version))
+		if wasSet {
+			m.logger.Debug("DH Config updated", zap.Int("version", cfg.Version))
+		} else {
+			m.logger.Debug("DH Config received", zap.Int("version", cfg.Version))
+		}
 	case *tg.MessagesDhConfigNotModified:
 		if !m.cfg.set {
 			return dhConfig{}, xerrors.Errorf("unexpected type %T", d)
