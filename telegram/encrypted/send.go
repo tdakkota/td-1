@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 
@@ -16,21 +17,16 @@ import (
 const latestLayer = 101
 
 func (m *Manager) Send(ctx context.Context, chatID int, msg e2e.DecryptedMessageClass) error {
-	chat, err := m.storage.FindByID(ctx, chatID)
-	if err != nil {
-		return xerrors.Errorf("find chat %d: %w", chatID, err)
-	}
-
-	return m.send(ctx, chat, msg)
+	return m.send(ctx, chatID, msg)
 }
 
-func (m *Manager) sendLayer(ctx context.Context, e Chat) error {
+func (m *Manager) sendLayer(ctx context.Context, chatID int) error {
 	randomID, err := crypto.RandInt64(m.rand)
 	if err != nil {
 		return xerrors.Errorf("generate random_id: %w", err)
 	}
 
-	return m.send(ctx, e, &e2e.DecryptedMessageService{
+	return m.send(ctx, chatID, &e2e.DecryptedMessageService{
 		RandomID: randomID,
 		Action: &e2e.DecryptedMessageActionNotifyLayer{
 			Layer: latestLayer,
@@ -38,13 +34,24 @@ func (m *Manager) sendLayer(ctx context.Context, e Chat) error {
 	})
 }
 
-func (m *Manager) send(ctx context.Context, chat Chat, msg e2e.DecryptedMessageClass) error {
-	logger := m.logger.With(zap.Int("chat_id", chat.ID))
+func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessageClass) (rErr error) {
+	logger := m.logger.With(zap.Int("chat_id", chatID))
 
 	randomBytes := make([]byte, 32)
 	if _, err := io.ReadFull(m.rand, randomBytes); err != nil {
 		return xerrors.Errorf("read random bytes: %w", err)
 	}
+
+	tx, err := m.storage.Acquire(ctx, chatID)
+	if err != nil {
+		return xerrors.Errorf("acquire: %w", err)
+	}
+	defer func() {
+		if rErr != nil {
+			multierr.AppendInto(&rErr, tx.Rollback(ctx))
+		}
+	}()
+	chat := tx.Get()
 
 	layer := chat.Layer
 	if layer == 0 {
@@ -68,7 +75,7 @@ func (m *Manager) send(ctx context.Context, chat Chat, msg e2e.DecryptedMessageC
 		return err
 	}
 
-	if err := m.storage.Save(ctx, chat); err != nil {
+	if err := tx.Commit(ctx, chat); err != nil {
 		return xerrors.Errorf("save chat: %w", err)
 	}
 

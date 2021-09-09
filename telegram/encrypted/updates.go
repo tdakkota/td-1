@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 
@@ -32,14 +33,24 @@ func (m *Manager) Register(d tg.UpdateDispatcher) {
 	d.OnNewEncryptedMessage(m.OnNewEncryptedMessage)
 }
 
-func (m *Manager) OnNewEncryptedMessage(ctx context.Context, _ tg.Entities, u *tg.UpdateNewEncryptedMessage) error {
+func (m *Manager) OnNewEncryptedMessage(
+	ctx context.Context,
+	_ tg.Entities,
+	u *tg.UpdateNewEncryptedMessage,
+) (rErr error) {
 	chatID := u.Message.GetChatID()
 
-	chat, err := m.storage.FindByID(ctx, chatID)
+	tx, err := m.storage.Acquire(ctx, chatID)
 	if err != nil {
 		m.logger.Info("Received encrypted message from unknown chat", zap.Int("chat_id", chatID))
 		return xerrors.Errorf("find chat %d: %w", chatID, err)
 	}
+	defer func() {
+		if rErr != nil {
+			multierr.AppendInto(&rErr, tx.Rollback(ctx))
+		}
+	}()
+	chat := tx.Get()
 
 	data, err := chat.decrypt(u.Message.GetBytes())
 	if err != nil {
@@ -51,10 +62,6 @@ func (m *Manager) OnNewEncryptedMessage(ctx context.Context, _ tg.Entities, u *t
 		return xerrors.Errorf("decode layer: %w", err)
 	}
 
-	return m.handleMessage(ctx, chat, layer)
-}
-
-func (m *Manager) handleMessage(ctx context.Context, chat Chat, layer e2e.DecryptedMessageLayer) error {
 	myIn, myOut := chat.seqNo()
 	logger := m.logger.With(
 		zap.Int("chat_id", chat.ID),
@@ -80,7 +87,7 @@ func (m *Manager) handleMessage(ctx context.Context, chat Chat, layer e2e.Decryp
 	default:
 	}
 
-	if err := m.storage.Save(ctx, chat); err != nil {
+	if err := tx.Commit(ctx, chat); err != nil {
 		return xerrors.Errorf("save chat %d: %w", chat.ID, err)
 	}
 
@@ -107,10 +114,6 @@ func (m *Manager) OnEncryption(ctx context.Context, e tg.Entities, update *tg.Up
 			chat, err := m.acceptChat(ctx, c)
 			if err != nil {
 				return xerrors.Errorf("accept: %w", err)
-			}
-
-			if err := m.storage.Save(ctx, chat); err != nil {
-				return xerrors.Errorf("save chat: %w", err)
 			}
 
 			if err := m.created(ctx, chat); err != nil {

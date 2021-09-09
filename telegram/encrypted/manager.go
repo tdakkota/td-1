@@ -11,6 +11,7 @@ import (
 	"github.com/gotd/td/tg"
 )
 
+// Manager manages encrypted chats state.
 type Manager struct {
 	raw     *tg.Client
 	storage ChatStorage
@@ -29,6 +30,7 @@ type Manager struct {
 	logger *zap.Logger
 }
 
+// NewManager creates new Manager.
 func NewManager(raw *tg.Client, d tg.UpdateDispatcher, opts Options) *Manager {
 	opts.setDefaults()
 
