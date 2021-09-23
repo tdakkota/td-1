@@ -21,10 +21,10 @@ type Chat struct {
 	Layer int
 	// Date chat was created.
 	Date int
-	// AdminID is a chat creator ID.
-	AdminID int
-	// ParticipantID is an id of the second chat participant.
-	ParticipantID int
+	// Chat creator ID
+	AdminID int64
+	// ID of the second chat participant
+	ParticipantID int64
 	// Originator denotes current user is creator.
 	Originator bool
 
