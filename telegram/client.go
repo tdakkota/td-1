@@ -71,10 +71,12 @@ type Client struct {
 	testDC bool // immutable
 
 	// Connection state. Guarded by connMux.
-	session *pool.SyncSession
-	cfg     *manager.AtomicConfig
-	conn    clientConn
-	connMux sync.Mutex
+	session        *pool.SyncSession
+	cfg            *manager.AtomicConfig
+	conn           clientConn
+	acquireRestart atomic.Bool
+	connMux        sync.Mutex
+
 	// Connection factory fields.
 	create       connConstructor        // immutable
 	resolver     dcs.Resolver           // immutable

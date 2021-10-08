@@ -2,9 +2,12 @@ package telegram
 
 import (
 	"context"
+	"net"
 	"strings"
+	"syscall"
 
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/bin"
 	"github.com/gotd/td/tg"
@@ -25,6 +28,25 @@ func (c *Client) Invoke(ctx context.Context, input bin.Encoder, output bin.Decod
 // invokeDirect directly invokes RPC method, automatically handling datacenter redirects.
 func (c *Client) invokeDirect(ctx context.Context, input bin.Encoder, output bin.Decoder) error {
 	if err := c.invokeConn(ctx, input, output); err != nil {
+		if isNetworkError(err) {
+			if c.acquireRestart.CAS(false, true) {
+				defer c.acquireRestart.Store(false)
+				c.log.Debug("Restarting connection due to network error", zap.Error(err))
+				c.resetReady()
+				c.restart <- struct{}{}
+			}
+
+			c.log.Debug("Waiting for reconnection")
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-c.ready.Ready():
+				c.log.Debug("Connection restarted, re-invoking request")
+			}
+
+			return c.invokeDirect(ctx, input, output)
+		}
+
 		// Handling datacenter migration request.
 		if rpcErr, ok := tgerr.As(err); ok && strings.HasSuffix(rpcErr.Type, "_MIGRATE") {
 			targetDC := rpcErr.Argument
@@ -59,4 +81,16 @@ func (c *Client) invokeConn(ctx context.Context, input bin.Encoder, output bin.D
 	c.connMux.Unlock()
 
 	return conn.Invoke(ctx, input, output)
+}
+
+func isNetworkError(err error) bool {
+	if xerrors.Is(err, syscall.EPIPE) {
+		return true
+	}
+
+	if err, ok := err.(net.Error); ok && err.Timeout() {
+		return true
+	}
+
+	return false
 }
