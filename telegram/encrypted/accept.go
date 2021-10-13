@@ -64,6 +64,10 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 			Key:           key,
 		}
 
+		if err := m.storage.Save(ctx, accepted); err != nil {
+			return Chat{}, xerrors.Errorf("save chat: %w", err)
+		}
+
 		if err := m.sendLayer(ctx, accepted.ID); err != nil {
 			return Chat{}, xerrors.Errorf("notify layer: %w", err)
 		}

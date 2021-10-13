@@ -91,7 +91,14 @@ func (i *InmemoryStorage) Acquire(ctx context.Context, id int) (ChatTx, error) {
 // Save saves chat to storage.
 func (i *InmemoryStorage) Save(ctx context.Context, chat Chat) error {
 	i.mux.Lock()
-	guard := i.chats[chat.ID]
+	guard, ok := i.chats[chat.ID]
+	if !ok {
+		i.chats[chat.ID] = &inmemoryChat{
+			chat: chat,
+		}
+		i.mux.Unlock()
+		return nil
+	}
 	i.mux.Unlock()
 
 	guard.mux.Lock()
