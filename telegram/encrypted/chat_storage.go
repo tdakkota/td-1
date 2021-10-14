@@ -13,7 +13,7 @@ type ChatTx interface {
 	Rollback(ctx context.Context) error
 }
 
-// ChatStorage contains encrypted chats.
+// ChatStorage stores encrypted chats.
 type ChatStorage interface {
 	Save(ctx context.Context, chat Chat) error
 	Acquire(ctx context.Context, id int) (ChatTx, error)
