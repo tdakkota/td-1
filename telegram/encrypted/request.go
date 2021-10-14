@@ -78,19 +78,8 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 				return 0, multierr.Append(err, m.DiscardChat(ctx, chatID, false))
 			}
 
-			created := Chat{
-				ID:            c.ID,
-				AccessHash:    c.AccessHash,
-				Layer:         0,
-				Date:          c.Date,
-				AdminID:       c.AdminID,
-				ParticipantID: c.ParticipantID,
-				Originator:    true,
-				InSeq:         0,
-				OutSeq:        0,
-				HisInSeq:      0,
-				Key:           key,
-			}
+			var created Chat
+			created.init(c, true, key)
 
 			if err := m.storage.Save(ctx, created); err != nil {
 				return 0, xerrors.Errorf("save chat: %w", err)

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/gotd/td/internal/crypto"
+	"github.com/gotd/td/tg"
 )
 
 // getKeyFingerprint computes key fingerprint.
@@ -40,6 +41,20 @@ type Chat struct {
 
 	// Key is message encryption key.
 	Key crypto.AuthKey
+}
+
+func (c *Chat) init(obj *tg.EncryptedChat, originator bool, key crypto.AuthKey) {
+	c.ID = obj.ID
+	c.AccessHash = obj.AccessHash
+	c.Layer = minLayer
+	c.Date = obj.Date
+	c.AdminID = obj.AdminID
+	c.ParticipantID = obj.ParticipantID
+	c.Originator = originator
+	c.InSeq = 0
+	c.OutSeq = 0
+	c.HisInSeq = 0
+	c.Key = key
 }
 
 // seqNo returns a pair of incoming and outgoing messages sequence numbers.

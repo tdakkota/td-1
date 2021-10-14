@@ -14,7 +14,10 @@ import (
 	"github.com/gotd/td/tg/e2e"
 )
 
-const latestLayer = 101
+const (
+	minLayer = 46
+	latestLayer = 101
+)
 
 func (m *Manager) Send(ctx context.Context, chatID int, msg e2e.DecryptedMessageClass) error {
 	return m.send(ctx, chatID, msg)
@@ -55,7 +58,7 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 
 	layer := chat.Layer
 	if layer == 0 {
-		layer = latestLayer
+		layer = minLayer
 	}
 
 	inSeq, outSeq := chat.nextMessage()
