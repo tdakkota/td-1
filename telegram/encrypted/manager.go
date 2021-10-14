@@ -1,12 +1,10 @@
 package encrypted
 
 import (
-	"context"
 	"io"
 	"sync"
 
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/tg"
 )
@@ -47,20 +45,4 @@ func NewManager(raw *tg.Client, d tg.UpdateDispatcher, opts Options) *Manager {
 	}
 	m.Register(d)
 	return m
-}
-
-func (m *Manager) discardChat(ctx context.Context, id int) error {
-	m.logger.Debug("Discard chat", zap.Int("id", id))
-
-	if err := m.storage.Discard(ctx, id); err != nil {
-		return xerrors.Errorf("discard chat in storage: %w", err)
-	}
-
-	if _, err := m.raw.MessagesDiscardEncryption(ctx, &tg.MessagesDiscardEncryptionRequest{
-		ChatID: id,
-	}); err != nil {
-		return xerrors.Errorf("send discard request: %w", err)
-	}
-
-	return nil
 }
