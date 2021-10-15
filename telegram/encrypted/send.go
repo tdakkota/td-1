@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	minLayer = 46
+	minLayer    = 46
 	latestLayer = 101
 )
 
@@ -81,12 +81,13 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 		zap.Int("in_seq", data.InSeqNo),
 		zap.Int("out_seq", data.OutSeqNo),
 	)
-	if _, err := m.sendRaw(ctx, chat, false, &data); err != nil {
-		return err
-	}
 
 	if err := tx.Commit(ctx, chat); err != nil {
 		return xerrors.Errorf("save chat: %w", err)
+	}
+
+	if _, err := m.sendRaw(ctx, chat, false, &data); err != nil {
+		return err
 	}
 
 	return nil
