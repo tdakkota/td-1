@@ -51,7 +51,7 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 	}
 	defer func() {
 		if rErr != nil {
-			multierr.AppendInto(&rErr, tx.Rollback(ctx))
+			multierr.AppendInto(&rErr, tx.Close(ctx))
 		}
 	}()
 	chat := tx.Get()
@@ -68,6 +68,13 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 		InSeqNo:     inSeq,
 		OutSeqNo:    outSeq,
 		Message:     msg,
+	}
+
+	if err := m.messages.Push(ctx, chatID, EnqueuedMessage{
+		SeqNo:   outSeq,
+		Message: msg,
+	}); err != nil {
+		return xerrors.Errorf("push message: %w", err)
 	}
 
 	logger.Debug("Send encrypted message",

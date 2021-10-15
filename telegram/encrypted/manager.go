@@ -11,8 +11,9 @@ import (
 
 // Manager manages encrypted chats state.
 type Manager struct {
-	raw     *tg.Client
-	storage ChatStorage
+	raw      *tg.Client
+	storage  ChatStorage
+	messages MessageStorage
 
 	accept  AcceptHandler
 	created CreatedHandler

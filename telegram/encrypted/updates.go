@@ -18,6 +18,17 @@ func (m *Manager) Register(d tg.UpdateDispatcher) {
 	d.OnNewEncryptedMessage(m.OnNewEncryptedMessage)
 }
 
+func getMessageAction(msg e2e.DecryptedMessageClass) (e2e.DecryptedMessageActionClass, bool) {
+	var action e2e.DecryptedMessageActionClass
+	switch msg := msg.(type) {
+	case *e2e.DecryptedMessageService:
+		action = msg.GetAction()
+	case *e2e.DecryptedMessageService8:
+		action = msg.GetAction()
+	}
+	return action, action != nil
+}
+
 func (m *Manager) OnNewEncryptedMessage(
 	ctx context.Context,
 	_ tg.Entities,
@@ -32,7 +43,7 @@ func (m *Manager) OnNewEncryptedMessage(
 	}
 	defer func() {
 		if rErr != nil {
-			multierr.AppendInto(&rErr, tx.Rollback(ctx))
+			multierr.AppendInto(&rErr, tx.Close(ctx))
 		}
 	}()
 	chat := tx.Get()
@@ -72,8 +83,24 @@ func (m *Manager) OnNewEncryptedMessage(
 	default:
 	}
 
-	if err := tx.Commit(ctx, chat); err != nil {
-		return xerrors.Errorf("save chat %d: %w", chat.ID, err)
+	switch action, _ := getMessageAction(layer.Message); action := action.(type) {
+	case *e2e.DecryptedMessageActionResend:
+		if err := m.resendMessages(ctx, action, tx); err != nil {
+			return xerrors.Errorf("resend messages: %w", err)
+		}
+	case *e2e.DecryptedMessageActionNotifyLayer:
+		if err := m.updateLayer(ctx, action, tx); err != nil {
+			return xerrors.Errorf("resend messages: %w", err)
+		}
+	// TODO(tdakkota): handle key rotation
+	// case *e2e.DecryptedMessageActionRequestKey:
+	// case *e2e.DecryptedMessageActionAcceptKey:
+	// case *e2e.DecryptedMessageActionAbortKey:
+	// case *e2e.DecryptedMessageActionCommitKey:
+	default:
+		if err := tx.Commit(ctx, chat); err != nil {
+			return xerrors.Errorf("save chat %d: %w", chat.ID, err)
+		}
 	}
 
 	return m.message(ctx, chat, layer.Message)
@@ -123,7 +150,7 @@ func (m *Manager) OnEncryption(ctx context.Context, e tg.Entities, update *tg.Up
 			return nil
 		}
 
-		return m.discardChat(ctx, c.ID, false)
+		return m.discardChat(ctx, c.ID, false, "Rejected by user")
 	default:
 		m.logger.Warn("Unexpected type", zap.String("type", fmt.Sprintf("%T", c)))
 		return nil

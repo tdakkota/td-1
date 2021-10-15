@@ -10,7 +10,7 @@ import (
 type ChatTx interface {
 	Get() Chat
 	Commit(ctx context.Context, ch Chat) error
-	Rollback(ctx context.Context) error
+	Close(ctx context.Context) error
 }
 
 // ChatStorage stores encrypted chats.
@@ -53,7 +53,7 @@ func (i *inmemoryTx) Commit(ctx context.Context, ch Chat) error {
 	return nil
 }
 
-func (i *inmemoryTx) Rollback(ctx context.Context) error {
+func (i *inmemoryTx) Close(ctx context.Context) error {
 	i.unlock()
 	return nil
 }

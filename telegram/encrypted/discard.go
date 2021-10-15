@@ -10,8 +10,12 @@ import (
 	"github.com/gotd/td/tg"
 )
 
-func (m *Manager) discardChat(ctx context.Context, id int, deleteHistory bool) (rErr error) {
-	m.logger.Debug("Discard chat", zap.Int("id", id))
+func (m *Manager) discardChat(ctx context.Context, id int, deleteHistory bool, reason string) (rErr error) {
+	m.logger.Debug("Discard chat",
+		zap.Int("id", id),
+		zap.Bool("delete_history", deleteHistory),
+		zap.String("reason", reason),
+	)
 
 	if err := m.storage.Discard(ctx, id); err != nil {
 		rErr = multierr.Append(rErr, xerrors.Errorf("discard chat in storage: %w", err))
@@ -28,5 +32,5 @@ func (m *Manager) discardChat(ctx context.Context, id int, deleteHistory bool) (
 }
 
 func (m *Manager) DiscardChat(ctx context.Context, id int, deleteHistory bool) (rErr error) {
-	return m.discardChat(ctx, id, deleteHistory)
+	return m.discardChat(ctx, id, deleteHistory, "requested by user")
 }
