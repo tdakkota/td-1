@@ -11,7 +11,7 @@ import (
 	"github.com/gotd/td/internal/crypto"
 )
 
-func (c Chat) encryptSide() crypto.Side {
+func (c ExchangeState) encryptSide() crypto.Side {
 	s := crypto.Server
 	if c.Originator {
 		s = crypto.Client
@@ -19,7 +19,7 @@ func (c Chat) encryptSide() crypto.Side {
 	return s
 }
 
-func (c Chat) decryptSide() crypto.Side {
+func (c ExchangeState) decryptSide() crypto.Side {
 	s := crypto.Client
 	if c.Originator {
 		s = crypto.Server
@@ -27,7 +27,7 @@ func (c Chat) decryptSide() crypto.Side {
 	return s
 }
 
-func (c Chat) decrypt(data []byte) ([]byte, error) {
+func (c ExchangeState) decrypt(data []byte) ([]byte, error) {
 	// TODO(tdakkota): optimize, maybe do better buffer API.
 	var (
 		msg  crypto.EncryptedMessage
@@ -60,7 +60,7 @@ func (c Chat) decrypt(data []byte) ([]byte, error) {
 
 func countPadding(l int) int { return 16 + (16 - (l % 16)) }
 
-func (c Chat) padBuffer(rand io.Reader, data []byte) (*bin.Buffer, error) {
+func (c ExchangeState) padBuffer(rand io.Reader, data []byte) (*bin.Buffer, error) {
 	length := len(data) + 4
 	padding := countPadding(length)
 
@@ -76,7 +76,7 @@ func (c Chat) padBuffer(rand io.Reader, data []byte) (*bin.Buffer, error) {
 	return padded, nil
 }
 
-func (c Chat) encrypt(rand io.Reader, data []byte) ([]byte, error) {
+func (c ExchangeState) encrypt(rand io.Reader, data []byte) ([]byte, error) {
 	// TODO(tdakkota): optimize, maybe do better buffer API.
 	padded, err := c.padBuffer(rand, data)
 	if err != nil {

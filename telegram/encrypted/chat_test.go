@@ -11,7 +11,9 @@ func TestChat_consumeMessage(t *testing.T) {
 	t.Run("Originator", func(t *testing.T) {
 		a := require.New(t)
 		ch := Chat{
-			Originator: true,
+			ExchangeState: ExchangeState{
+				Originator: true,
+			},
 		}
 
 		a.Equal(consumeMessage, ch.consumeMessage(1, 0))
@@ -25,7 +27,9 @@ func TestChat_consumeMessage(t *testing.T) {
 	t.Run("NotOriginator", func(t *testing.T) {
 		a := require.New(t)
 		ch := Chat{
-			Originator: false,
+			ExchangeState: ExchangeState{
+				Originator: false,
+			},
 		}
 
 		a.Equal(consumeMessage, ch.consumeMessage(0, 1))
@@ -42,7 +46,7 @@ func TestChat_nextMessage(t *testing.T) {
 	test := func(orig bool, s []int) func(t *testing.T) {
 		return func(t *testing.T) {
 			ch := Chat{
-				Originator: orig,
+				ExchangeState: ExchangeState{Originator: orig},
 			}
 
 			for _, seqNo := range s {
@@ -86,9 +90,11 @@ func TestChat_seqNo(t *testing.T) {
 		t.Run(fmt.Sprintf("Test%d", i), func(t *testing.T) {
 			a := require.New(t)
 			ch := Chat{
-				Originator: tt.originator,
-				InSeq:      tt.localRaw.in,
-				OutSeq:     tt.localRaw.out,
+				ExchangeState: ExchangeState{
+					Originator: tt.originator,
+				},
+				InSeq:  tt.localRaw.in,
+				OutSeq: tt.localRaw.out,
 			}
 
 			in, out := ch.seqNo()

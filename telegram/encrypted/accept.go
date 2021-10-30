@@ -51,7 +51,7 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 	switch chat := c.(type) {
 	case *tg.EncryptedChat:
 		var accepted Chat
-		accepted.init(chat, false, key)
+		accepted.init(chat, false, key, dhCfg)
 
 		if err := m.storage.Save(ctx, accepted); err != nil {
 			return Chat{}, xerrors.Errorf("save chat: %w", err)

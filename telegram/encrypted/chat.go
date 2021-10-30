@@ -2,8 +2,10 @@ package encrypted
 
 import (
 	"encoding/binary"
+	"math/big"
 
 	"github.com/gotd/td/internal/crypto"
+	"github.com/gotd/td/telegram/internal/dh"
 	"github.com/gotd/td/tg"
 )
 
@@ -12,49 +14,71 @@ func getKeyFingerprint(key crypto.AuthKey) int64 {
 	return int64(binary.LittleEndian.Uint64(key.ID[:]))
 }
 
-// Chat is an encrypted chat metadata structure.
-type Chat struct {
-	// Chat ID.
-	ID int
-	// AccessHash is a chat access hash.
-	AccessHash int64
-	// Layer is a TL encrypted schema layer version.
-	Layer int
-	// Date chat was created.
-	Date int
-	// Chat creator ID
-	AdminID int64
-	// ID of the second chat participant
-	ParticipantID int64
-	// Originator denotes current user is creator.
-	Originator bool
+type (
+	// ExchangeState contains key exchange state.
+	//
+	// See https://core.telegram.org/api/end-to-end/pfs.
+	ExchangeState struct {
+		// G is a g DH parameter.
+		G int
+		// P is a p DH parameter.
+		P *big.Int
+		// Key is message encryption key.
+		Key crypto.AuthKey
+		// Originator denotes current user is creator.
+		Originator bool
+	}
 
-	// InSeq is an incoming message sequence.
-	// InSeq stored as total number of all consumed messages.
-	InSeq int
-	// OutSeq is an outgoing message sequence.
-	// InSeq stored as total number of all sent messages.
-	OutSeq int
-	// HisInSeq is an incoming message sequence of other party.
-	// Need for security checks.
-	HisInSeq int
+	// Chat is an encrypted chat metadata structure.
+	Chat struct {
+		// Chat ID.
+		ID int
+		// AccessHash is a chat access hash.
+		AccessHash int64
+		// Layer is a TL encrypted schema layer version.
+		Layer int
+		// Date chat was created.
+		Date int
+		// Chat creator ID
+		AdminID int64
+		// ID of the second chat participant
+		ParticipantID int64
 
-	// Key is message encryption key.
-	Key crypto.AuthKey
-}
+		// InSeq is an incoming message sequence.
+		// InSeq stored as total number of all consumed messages.
+		InSeq int
+		// OutSeq is an outgoing message sequence.
+		// InSeq stored as total number of all sent messages.
+		OutSeq int
+		// HisInSeq is an incoming message sequence of other party.
+		// Need for security checks.
+		HisInSeq int
 
-func (c *Chat) init(obj *tg.EncryptedChat, originator bool, key crypto.AuthKey) {
+		ExchangeState
+	}
+)
+
+func (c *Chat) init(
+	obj *tg.EncryptedChat,
+	originator bool,
+	key crypto.AuthKey,
+	dhCfg dh.Config,
+) {
 	c.ID = obj.ID
 	c.AccessHash = obj.AccessHash
 	c.Layer = minLayer
 	c.Date = obj.Date
 	c.AdminID = obj.AdminID
 	c.ParticipantID = obj.ParticipantID
-	c.Originator = originator
 	c.InSeq = 0
 	c.OutSeq = 0
 	c.HisInSeq = 0
-	c.Key = key
+	c.ExchangeState = ExchangeState{
+		G:          dhCfg.G,
+		P:          dhCfg.P,
+		Key:        key,
+		Originator: originator,
+	}
 }
 
 // seqNo returns a pair of incoming and outgoing messages sequence numbers.

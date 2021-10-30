@@ -14,7 +14,7 @@ func TestEncryptDecrypt(t *testing.T) {
 	a := require.New(t)
 	randSource := rand.Reader
 
-	test := func(x, y Chat) {
+	test := func(x, y ExchangeState) {
 		text := []byte("aboba")
 		encrypted, err := x.encrypt(randSource, text)
 		a.NoError(err)
@@ -30,10 +30,10 @@ func TestEncryptDecrypt(t *testing.T) {
 	}
 	key := k.WithID()
 
-	x, y := Chat{
+	x, y := ExchangeState{
 		Originator: false,
 		Key:        key,
-	}, Chat{
+	}, ExchangeState{
 		Originator: true,
 		Key:        key,
 	}

@@ -79,7 +79,7 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 			}
 
 			var created Chat
-			created.init(c, true, key)
+			created.init(c, true, key, dhCfg)
 
 			if err := m.storage.Save(ctx, created); err != nil {
 				return 0, xerrors.Errorf("save chat: %w", err)
