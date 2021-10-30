@@ -47,10 +47,10 @@ func TestManager_discardChat(t *testing.T) {
 
 	m.storage = NewInmemoryStorage()
 	invoker.ExpectCall(&tg.MessagesDiscardEncryptionRequest{
-		DeleteHistory: false,
+		DeleteHistory: true,
 		ChatID:        10,
 	}).ThenTrue()
-	a.NoError(m.DiscardChat(ctx, 10, false))
+	a.NoError(m.DiscardChat(ctx, 10, true))
 
 	invoker.ExpectCall(&tg.MessagesDiscardEncryptionRequest{
 		DeleteHistory: false,

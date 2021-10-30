@@ -28,7 +28,7 @@ func (m *Manager) discardChat(ctx context.Context, id int, deleteHistory bool, r
 		rErr = multierr.Append(rErr, xerrors.Errorf("send discard request: %w", err))
 	}
 
-	return nil
+	return rErr
 }
 
 func (m *Manager) DiscardChat(ctx context.Context, id int, deleteHistory bool) (rErr error) {
