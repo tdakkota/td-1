@@ -4,6 +4,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/gotd/td/telegram/internal/dh"
 	"go.uber.org/zap"
 
 	"github.com/gotd/td/tg"
@@ -22,8 +23,7 @@ type Manager struct {
 	requests    map[int]request
 	requestsMux sync.Mutex
 
-	cfg    dhConfig
-	cfgMux sync.Mutex
+	dh *dh.State
 
 	rand   io.Reader
 	logger *zap.Logger
@@ -40,9 +40,12 @@ func NewManager(raw *tg.Client, d tg.UpdateDispatcher, opts Options) *Manager {
 		created:  opts.Created,
 		message:  opts.Message,
 		requests: map[int]request{},
-		cfg:      dhConfig{},
-		rand:     opts.Random,
-		logger:   opts.Logger,
+		dh: dh.NewState(raw, dh.Options{
+			Random: opts.Random,
+			Logger: opts.Logger,
+		}),
+		rand:   opts.Random,
+		logger: opts.Logger,
 	}
 	m.Register(d)
 	return m

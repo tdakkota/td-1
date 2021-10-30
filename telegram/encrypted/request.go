@@ -20,7 +20,7 @@ type request struct {
 //
 // See https://core.telegram.org/api/end-to-end#sending-a-request.
 func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int, error) {
-	a, dhCfg, err := m.initDH(ctx)
+	a, dhCfg, err := m.dh.Init(ctx)
 	if err != nil {
 		return 0, xerrors.Errorf("init DH: %w", err)
 	}

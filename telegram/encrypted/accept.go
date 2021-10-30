@@ -17,7 +17,7 @@ import (
 func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested) (Chat, error) {
 	m.logger.Debug("Accept chat", zap.Int("id", req.ID))
 
-	b, dhCfg, err := m.initDH(ctx)
+	b, dhCfg, err := m.dh.Init(ctx)
 	if err != nil {
 		return Chat{}, xerrors.Errorf("init DH: %w", err)
 	}
