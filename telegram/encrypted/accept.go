@@ -4,8 +4,8 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/go-faster/errors"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/internal/crypto"
 	"github.com/gotd/td/tg"
@@ -19,7 +19,7 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 
 	b, dhCfg, err := m.dh.Init(ctx)
 	if err != nil {
-		return Chat{}, xerrors.Errorf("init DH: %w", err)
+		return Chat{}, errors.Wrap(err, "init DH")
 	}
 
 	g := dhCfg.GBig
@@ -32,7 +32,7 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 	k := crypto.Key{}
 
 	if !crypto.FillBytes(big.NewInt(0).Exp(gA, b, dhPrime), k[:]) {
-		return Chat{}, xerrors.New("auth key is too big")
+		return Chat{}, errors.New("auth key is too big")
 	}
 	key := k.WithID()
 
@@ -54,17 +54,17 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 		accepted.init(chat, false, key, dhCfg)
 
 		if err := m.storage.Save(ctx, accepted); err != nil {
-			return Chat{}, xerrors.Errorf("save chat: %w", err)
+			return Chat{}, errors.Wrap(err, "save chat")
 		}
 
 		if err := m.sendLayer(ctx, accepted.ID); err != nil {
-			return Chat{}, xerrors.Errorf("notify layer: %w", err)
+			return Chat{}, errors.Wrap(err, "notify layer")
 		}
 
 		return accepted, nil
 	case *tg.EncryptedChatDiscarded:
 		return Chat{}, &ChatDiscardedError{Chat: chat}
 	default:
-		return Chat{}, xerrors.Errorf("unexpected type %T", chat)
+		return Chat{}, errors.Errorf("unexpected type %T", chat)
 	}
 }

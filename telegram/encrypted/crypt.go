@@ -4,9 +4,10 @@ import (
 	"crypto/aes"
 	"io"
 
-	"golang.org/x/xerrors"
+	"github.com/go-faster/errors"
 
 	"github.com/gotd/ige"
+
 	"github.com/gotd/td/bin"
 	"github.com/gotd/td/internal/crypto"
 )
@@ -49,10 +50,10 @@ func (c ExchangeState) decrypt(data []byte) ([]byte, error) {
 	buf := bin.Buffer{Buf: plaintext}
 	messageDataLen, err := buf.Int()
 	if err != nil {
-		return nil, xerrors.Errorf("get messageDataLen: %w", err)
+		return nil, errors.Wrap(err, "get messageDataLen")
 	}
 	if l := buf.Len(); l < messageDataLen {
-		return nil, xerrors.Errorf("buffer too small (%d < %d)", l, messageDataLen)
+		return nil, errors.Errorf("buffer too small (%d < %d)", l, messageDataLen)
 	}
 
 	return buf.Buf[:messageDataLen], nil

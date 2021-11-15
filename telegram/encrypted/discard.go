@@ -3,9 +3,9 @@ package encrypted
 import (
 	"context"
 
+	"github.com/go-faster/errors"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/tg"
 )
@@ -18,14 +18,14 @@ func (m *Manager) discardChat(ctx context.Context, id int, deleteHistory bool, r
 	)
 
 	if err := m.storage.Discard(ctx, id); err != nil {
-		rErr = multierr.Append(rErr, xerrors.Errorf("discard chat in storage: %w", err))
+		rErr = multierr.Append(rErr, errors.Wrap(err, "discard chat in storage"))
 	}
 
 	if _, err := m.raw.MessagesDiscardEncryption(ctx, &tg.MessagesDiscardEncryptionRequest{
 		DeleteHistory: deleteHistory,
 		ChatID:        id,
 	}); err != nil {
-		rErr = multierr.Append(rErr, xerrors.Errorf("send discard request: %w", err))
+		rErr = multierr.Append(rErr, errors.Wrap(err, "send discard request"))
 	}
 
 	return rErr

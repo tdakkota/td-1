@@ -7,8 +7,8 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/go-faster/errors"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/internal/crypto"
 	"github.com/gotd/td/tg"
@@ -53,7 +53,7 @@ func (m *State) Init(ctx context.Context) (*big.Int, Config, error) {
 
 	a, err := generateBig(m.rand)
 	if err != nil {
-		return nil, Config{}, xerrors.Errorf("generate random: %w", err)
+		return nil, Config{}, errors.Wrap(err, "generate random")
 	}
 
 	return a, dhCfg, nil
@@ -80,7 +80,7 @@ func (m *State) GetDHConfig(ctx context.Context) (Config, error) {
 		Version:      version,
 	})
 	if err != nil {
-		return Config{}, xerrors.Errorf("get DH config: %w", err)
+		return Config{}, errors.Wrap(err, "get DH config")
 	}
 
 	switch cfg := d.(type) {
@@ -88,7 +88,7 @@ func (m *State) GetDHConfig(ctx context.Context) (Config, error) {
 		p := big.NewInt(0).SetBytes(cfg.P)
 
 		if err := crypto.CheckDH(cfg.G, p); err != nil {
-			return Config{}, xerrors.Errorf("check DH: %w", err)
+			return Config{}, errors.Wrap(err, "check DH")
 		}
 
 		wasSet := m.cfg.set
@@ -106,10 +106,10 @@ func (m *State) GetDHConfig(ctx context.Context) (Config, error) {
 		}
 	case *tg.MessagesDhConfigNotModified:
 		if !m.cfg.set {
-			return Config{}, xerrors.Errorf("unexpected type %T", d)
+			return Config{}, errors.Errorf("unexpected type %T", d)
 		}
 	default:
-		return Config{}, xerrors.Errorf("unexpected type %T", d)
+		return Config{}, errors.Errorf("unexpected type %T", d)
 	}
 
 	return m.cfg, nil
@@ -120,7 +120,7 @@ var randMax = big.NewInt(0).SetBit(big.NewInt(0), crypto.RSAKeyBits, 1)
 func generateBig(r io.Reader) (*big.Int, error) {
 	a, err := rand.Int(r, randMax)
 	if err != nil {
-		return nil, xerrors.Errorf("generate %d-bit number: %w", crypto.RSAKeyBits, err)
+		return nil, errors.Errorf("generate %d-bit number: %w", crypto.RSAKeyBits, err)
 	}
 	return a, nil
 }

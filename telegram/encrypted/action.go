@@ -3,9 +3,9 @@ package encrypted
 import (
 	"context"
 
+	"github.com/go-faster/errors"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/tg/e2e"
 )
@@ -29,23 +29,23 @@ func (m *Manager) resendMessages(ctx context.Context, action *e2e.DecryptedMessa
 
 	msgs, err := m.messages.GetFrom(ctx, chat.ID, action.StartSeqNo, action.EndSeqNo)
 	if err != nil {
-		if xerrors.Is(err, ErrRangeInvalid) {
+		if errors.Is(err, ErrRangeInvalid) {
 
 			return multierr.Append(
 				err,
 				m.discardChat(ctx, chat.ID, false, "Other party requested invalid range"),
 			)
 		}
-		return xerrors.Errorf("get message range: %w", err)
+		return errors.Wrap(err, "get message range")
 	}
 
 	if err := tx.Commit(ctx, chat); err != nil {
-		return xerrors.Errorf("save chat %d: %w", chat.ID, err)
+		return errors.Errorf("save chat %d: %w", chat.ID, err)
 	}
 
 	for i, msg := range msgs {
 		if err := m.send(ctx, chat.ID, msg.Message); err != nil {
-			return xerrors.Errorf("send requested message %d to %d: %w", i, chat.ID, err)
+			return errors.Errorf("send requested message %d to %d: %w", i, chat.ID, err)
 		}
 	}
 
@@ -73,7 +73,7 @@ func (m *Manager) updateLayer(ctx context.Context, action *e2e.DecryptedMessageA
 	}
 
 	if err := tx.Commit(ctx, chat); err != nil {
-		return xerrors.Errorf("save chat %d: %w", chat.ID, err)
+		return errors.Errorf("save chat %d: %w", chat.ID, err)
 	}
 
 	if action.Layer < latestLayer {

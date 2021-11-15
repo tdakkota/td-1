@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-faster/errors"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/bin"
 	"github.com/gotd/td/tg"
@@ -39,7 +39,7 @@ func (m *Manager) OnNewEncryptedMessage(
 	tx, err := m.storage.Acquire(ctx, chatID)
 	if err != nil {
 		m.logger.Info("Received encrypted message from unknown chat", zap.Int("chat_id", chatID))
-		return xerrors.Errorf("find chat %d: %w", chatID, err)
+		return errors.Errorf("find chat %d: %w", chatID, err)
 	}
 	defer func() {
 		if rErr != nil {
@@ -50,12 +50,12 @@ func (m *Manager) OnNewEncryptedMessage(
 
 	data, err := chat.decrypt(u.Message.GetBytes())
 	if err != nil {
-		return xerrors.Errorf("encrypt: %w", err)
+		return errors.Wrap(err, "encrypt")
 	}
 
 	layer := e2e.DecryptedMessageLayer{}
 	if err := layer.Decode(&bin.Buffer{Buf: data}); err != nil {
-		return xerrors.Errorf("decode layer: %w", err)
+		return errors.Wrap(err, "decode layer")
 	}
 
 	myIn, myOut := chat.seqNo()
@@ -86,11 +86,11 @@ func (m *Manager) OnNewEncryptedMessage(
 	switch action, _ := getMessageAction(layer.Message); action := action.(type) {
 	case *e2e.DecryptedMessageActionResend:
 		if err := m.resendMessages(ctx, action, tx); err != nil {
-			return xerrors.Errorf("resend messages: %w", err)
+			return errors.Wrap(err, "resend messages")
 		}
 	case *e2e.DecryptedMessageActionNotifyLayer:
 		if err := m.updateLayer(ctx, action, tx); err != nil {
-			return xerrors.Errorf("resend messages: %w", err)
+			return errors.Wrap(err, "update layer")
 		}
 	// TODO(tdakkota): handle key rotation
 	// case *e2e.DecryptedMessageActionRequestKey:
@@ -99,7 +99,7 @@ func (m *Manager) OnNewEncryptedMessage(
 	// case *e2e.DecryptedMessageActionCommitKey:
 	default:
 		if err := tx.Commit(ctx, chat); err != nil {
-			return xerrors.Errorf("save chat %d: %w", chat.ID, err)
+			return errors.Errorf("save chat %d: %w", chat.ID, err)
 		}
 	}
 
@@ -134,17 +134,17 @@ func (m *Manager) OnEncryption(ctx context.Context, e tg.Entities, update *tg.Up
 	case *tg.EncryptedChatRequested:
 		accepted, err := m.accept(ctx, e, c)
 		if err != nil {
-			return xerrors.Errorf("accept handler: %w", err)
+			return errors.Wrap(err, "accept handler")
 		}
 
 		if accepted {
 			chat, err := m.acceptChat(ctx, c)
 			if err != nil {
-				return xerrors.Errorf("accept: %w", err)
+				return errors.Wrap(err, "accept")
 			}
 
 			if err := m.created(ctx, chat); err != nil {
-				return xerrors.Errorf("created handler: %w", err)
+				return errors.Wrap(err, "created handler")
 			}
 
 			return nil

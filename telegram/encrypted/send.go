@@ -4,9 +4,9 @@ import (
 	"context"
 	"io"
 
+	"github.com/go-faster/errors"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/bin"
 	"github.com/gotd/td/internal/crypto"
@@ -26,7 +26,7 @@ func (m *Manager) Send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 func (m *Manager) sendLayer(ctx context.Context, chatID int) error {
 	randomID, err := crypto.RandInt64(m.rand)
 	if err != nil {
-		return xerrors.Errorf("generate random_id: %w", err)
+		return errors.Wrap(err, "generate random_id")
 	}
 
 	return m.send(ctx, chatID, &e2e.DecryptedMessageService{
@@ -42,12 +42,12 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 
 	randomBytes := make([]byte, 32)
 	if _, err := io.ReadFull(m.rand, randomBytes); err != nil {
-		return xerrors.Errorf("read random bytes: %w", err)
+		return errors.Wrap(err, "read random bytes")
 	}
 
 	tx, err := m.storage.Acquire(ctx, chatID)
 	if err != nil {
-		return xerrors.Errorf("acquire: %w", err)
+		return errors.Wrap(err, "acquire")
 	}
 	defer func() {
 		if rErr != nil {
@@ -74,7 +74,7 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 		SeqNo:   outSeq,
 		Message: msg,
 	}); err != nil {
-		return xerrors.Errorf("push message: %w", err)
+		return errors.Wrap(err, "push message")
 	}
 
 	logger.Debug("Send encrypted message",
@@ -83,7 +83,7 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 	)
 
 	if err := tx.Commit(ctx, chat); err != nil {
-		return xerrors.Errorf("save chat: %w", err)
+		return errors.Wrap(err, "save chat")
 	}
 
 	if _, err := m.sendRaw(ctx, chat, false, &data); err != nil {
@@ -102,17 +102,17 @@ func (m *Manager) sendRaw(
 	b := bin.Buffer{}
 
 	if err := msg.Encode(&b); err != nil {
-		return nil, xerrors.Errorf("encode: %w", err)
+		return nil, errors.Wrap(err, "encode")
 	}
 
 	encrypted, err := e.encrypt(m.rand, b.Buf)
 	if err != nil {
-		return nil, xerrors.Errorf("encrypt: %w", err)
+		return nil, errors.Wrap(err, "encrypt")
 	}
 
 	randomID, err := crypto.RandInt64(m.rand)
 	if err != nil {
-		return nil, xerrors.Errorf("generate random_id: %w", err)
+		return nil, errors.Wrap(err, "generate random_id")
 	}
 
 	r, err := m.raw.MessagesSendEncrypted(ctx, &tg.MessagesSendEncryptedRequest{
@@ -125,7 +125,7 @@ func (m *Manager) sendRaw(
 		Data:     encrypted,
 	})
 	if err != nil {
-		return nil, xerrors.Errorf("send encrypted: %w", err)
+		return nil, errors.Wrap(err, "send encrypted")
 	}
 
 	return r, nil

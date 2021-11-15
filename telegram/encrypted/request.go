@@ -4,9 +4,9 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/go-faster/errors"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/internal/crypto"
 	"github.com/gotd/td/tg"
@@ -22,7 +22,7 @@ type request struct {
 func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int, error) {
 	a, dhCfg, err := m.dh.Init(ctx)
 	if err != nil {
-		return 0, xerrors.Errorf("init DH: %w", err)
+		return 0, errors.Wrap(err,"init DH")
 	}
 
 	g := dhCfg.GBig
@@ -31,7 +31,7 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 
 	randomID, err := crypto.RandInt64(m.rand)
 	if err != nil {
-		return 0, xerrors.Errorf("generate random ID: %w", err)
+		return 0, errors.Wrap(err,"generate random ID")
 	}
 
 	m.logger.Debug("Request chat", zap.Int64("random_id", randomID))
@@ -43,7 +43,7 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 	})
 	if err != nil {
 		m.requestsMux.Unlock()
-		return 0, xerrors.Errorf("request chat: %w", err)
+		return 0, errors.Wrap(err,"request chat")
 	}
 	chatID := requested.GetID()
 
@@ -69,12 +69,12 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 			// key := pow(g_b, a) mod dh_prime
 			k := crypto.Key{}
 			if !crypto.FillBytes(big.NewInt(0).Exp(gB, a, dhPrime), k[:]) {
-				return 0, xerrors.New("auth key is too big")
+				return 0, errors.New("auth key is too big")
 			}
 			key := k.WithID()
 
 			if getKeyFingerprint(key) != c.KeyFingerprint {
-				err := xerrors.New("key fingerprint mismatch")
+				err := errors.New("key fingerprint mismatch")
 				return 0, multierr.Append(err, m.DiscardChat(ctx, chatID, false))
 			}
 
@@ -82,18 +82,18 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 			created.init(c, true, key, dhCfg)
 
 			if err := m.storage.Save(ctx, created); err != nil {
-				return 0, xerrors.Errorf("save chat: %w", err)
+				return 0, errors.Wrap(err,"save chat")
 			}
 
 			if err := m.sendLayer(ctx, chatID); err != nil {
-				return 0, xerrors.Errorf("notify layer: %w", err)
+				return 0, errors.Wrap(err,"notify layer")
 			}
 
 			return chatID, nil
 		case *tg.EncryptedChatDiscarded:
 			return 0, &ChatDiscardedError{Chat: c}
 		default:
-			return 0, xerrors.Errorf("unexpected type %T", c)
+			return 0, errors.Errorf("unexpected type %T", c)
 		}
 	}
 }
