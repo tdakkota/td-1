@@ -51,12 +51,20 @@ func (m *State) Init(ctx context.Context) (*big.Int, Config, error) {
 		return nil, Config{}, err
 	}
 
-	a, err := generateBig(m.rand)
+	a, err := m.Int()
 	if err != nil {
-		return nil, Config{}, errors.Wrap(err, "generate random")
+		return nil, Config{}, err
 	}
 
 	return a, dhCfg, nil
+}
+
+func (m *State) Int() (*big.Int, error) {
+	a, err := generateBig(m.rand)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
 }
 
 // GetDHConfig requests Diffie-Hellman protocol config.

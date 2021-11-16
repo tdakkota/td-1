@@ -11,6 +11,22 @@ import (
 	"github.com/gotd/td/tg"
 )
 
+func acceptKey(g, dhPrime, b *big.Int, GA []byte) (_ crypto.AuthKey, gB *big.Int, _ error) {
+	gA := big.NewInt(0).SetBytes(GA)
+
+	// TODO(tdakkota): check GA
+	// g_b := pow(g, b) mod dh_prime
+	gB = big.NewInt(0).Exp(g, b, dhPrime)
+	// key := pow(g_a, b) mod dh_prime
+	k := crypto.Key{}
+
+	if !crypto.FillBytes(big.NewInt(0).Exp(gA, b, dhPrime), k[:]) {
+		return crypto.AuthKey{}, nil, errors.New("auth key is too big")
+	}
+	key := k.WithID()
+	return key, gB, nil
+}
+
 // acceptChat generates key and accepts chat request.
 //
 // See https://core.telegram.org/api/end-to-end#accepting-a-request.
@@ -22,19 +38,10 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 		return Chat{}, errors.Wrap(err, "init DH")
 	}
 
-	g := dhCfg.GBig
-	dhPrime := dhCfg.P
-	// g_b := pow(g, b) mod dh_prime
-	gB := big.NewInt(0).Exp(g, b, dhPrime)
-
-	gA := big.NewInt(0).SetBytes(req.GA)
-	// key := pow(g_a, b) mod dh_prime
-	k := crypto.Key{}
-
-	if !crypto.FillBytes(big.NewInt(0).Exp(gA, b, dhPrime), k[:]) {
-		return Chat{}, errors.New("auth key is too big")
+	key, gB, err := acceptKey(dhCfg.GBig, dhCfg.P, b, req.GA)
+	if err != nil {
+		return Chat{}, err
 	}
-	key := k.WithID()
 
 	c, err := m.raw.MessagesAcceptEncryption(ctx, &tg.MessagesAcceptEncryptionRequest{
 		Peer: tg.InputEncryptedChat{

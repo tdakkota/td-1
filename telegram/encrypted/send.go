@@ -24,6 +24,12 @@ func (m *Manager) Send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 }
 
 func (m *Manager) sendLayer(ctx context.Context, chatID int) error {
+	return m.sendAction(ctx, chatID, &e2e.DecryptedMessageActionNotifyLayer{
+		Layer: latestLayer,
+	})
+}
+
+func (m *Manager) sendAction(ctx context.Context, chatID int, action e2e.DecryptedMessageActionClass) error {
 	randomID, err := crypto.RandInt64(m.rand)
 	if err != nil {
 		return errors.Wrap(err, "generate random_id")
@@ -31,9 +37,7 @@ func (m *Manager) sendLayer(ctx context.Context, chatID int) error {
 
 	return m.send(ctx, chatID, &e2e.DecryptedMessageService{
 		RandomID: randomID,
-		Action: &e2e.DecryptedMessageActionNotifyLayer{
-			Layer: latestLayer,
-		},
+		Action:   action,
 	})
 }
 
@@ -86,7 +90,9 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 		return errors.Wrap(err, "save chat")
 	}
 
-	if _, err := m.sendRaw(ctx, chat, false, &data); err != nil {
+	isService := msg.TypeID() == e2e.DecryptedMessageService8TypeID ||
+		msg.TypeID() == e2e.DecryptedMessageServiceTypeID
+	if _, err := m.sendRaw(ctx, chat, isService, false, &data); err != nil {
 		return err
 	}
 
@@ -96,7 +102,7 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 func (m *Manager) sendRaw(
 	ctx context.Context,
 	e Chat,
-	silent bool,
+	service, silent bool,
 	msg bin.Encoder,
 ) (tg.MessagesSentEncryptedMessageClass, error) {
 	b := bin.Buffer{}
@@ -115,18 +121,24 @@ func (m *Manager) sendRaw(
 		return nil, errors.Wrap(err, "generate random_id")
 	}
 
-	r, err := m.raw.MessagesSendEncrypted(ctx, &tg.MessagesSendEncryptedRequest{
-		Silent: silent,
-		Peer: tg.InputEncryptedChat{
-			ChatID:     e.ID,
-			AccessHash: e.AccessHash,
-		},
-		RandomID: randomID,
-		Data:     encrypted,
-	})
-	if err != nil {
-		return nil, errors.Wrap(err, "send encrypted")
+	if !service {
+		return m.raw.MessagesSendEncrypted(ctx, &tg.MessagesSendEncryptedRequest{
+			Silent: silent,
+			Peer: tg.InputEncryptedChat{
+				ChatID:     e.ID,
+				AccessHash: e.AccessHash,
+			},
+			RandomID: randomID,
+			Data:     encrypted,
+		})
+	} else {
+		return m.raw.MessagesSendEncryptedService(ctx, &tg.MessagesSendEncryptedServiceRequest{
+			Peer: tg.InputEncryptedChat{
+				ChatID:     e.ID,
+				AccessHash: e.AccessHash,
+			},
+			RandomID: randomID,
+			Data:     encrypted,
+		})
 	}
-
-	return r, nil
 }
