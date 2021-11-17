@@ -9,11 +9,6 @@ import (
 	"github.com/gotd/td/tg"
 )
 
-// getKeyFingerprint computes key fingerprint.
-func getKeyFingerprint(key crypto.AuthKey) int64 {
-	return int64(binary.LittleEndian.Uint64(key.ID[:]))
-}
-
 type (
 	// ExchangeState contains key exchange state.
 	//

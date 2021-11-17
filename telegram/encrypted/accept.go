@@ -49,7 +49,7 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 			AccessHash: req.AccessHash,
 		},
 		GB:             gB.Bytes(),
-		KeyFingerprint: getKeyFingerprint(key),
+		KeyFingerprint: key.IntID(),
 	})
 	if err != nil {
 		return Chat{}, err
