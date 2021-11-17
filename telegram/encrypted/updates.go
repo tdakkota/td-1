@@ -92,9 +92,14 @@ func (m *Manager) OnNewEncryptedMessage(
 		if err := m.updateLayer(ctx, action, tx); err != nil {
 			return errors.Wrap(err, "update layer")
 		}
-	// TODO(tdakkota): handle key rotation
-	// case *e2e.DecryptedMessageActionRequestKey:
-	// case *e2e.DecryptedMessageActionAcceptKey:
+	case *e2e.DecryptedMessageActionRequestKey:
+		if err := m.requestKey(ctx, action, tx); err != nil {
+			return errors.Wrap(err, "handle rotation request")
+		}
+	case *e2e.DecryptedMessageActionAcceptKey:
+		if err := m.acceptKey(ctx, action, tx); err != nil {
+			return errors.Wrap(err, "handle rotation request")
+		}
 	// case *e2e.DecryptedMessageActionAbortKey:
 	// case *e2e.DecryptedMessageActionCommitKey:
 	default:

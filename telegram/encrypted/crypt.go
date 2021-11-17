@@ -28,7 +28,12 @@ func (c ExchangeState) decryptSide() crypto.Side {
 	return s
 }
 
-func (c ExchangeState) decrypt(data []byte) ([]byte, error) {
+func (c *ExchangeState) resetExchange() {
+	c.NextKey = crypto.AuthKey{}
+	c.GAorB = nil
+}
+
+func (c *ExchangeState) decrypt(data []byte) ([]byte, error) {
 	// TODO(tdakkota): optimize, maybe do better buffer API.
 	var (
 		msg  crypto.EncryptedMessage

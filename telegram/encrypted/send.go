@@ -29,6 +29,10 @@ func (m *Manager) sendLayer(ctx context.Context, chatID int) error {
 	})
 }
 
+func (m *Manager) sendNoop(ctx context.Context, chatID int) error {
+	return m.sendAction(ctx, chatID, &e2e.DecryptedMessageActionNoop{})
+}
+
 func (m *Manager) sendAction(ctx context.Context, chatID int, action e2e.DecryptedMessageActionClass) error {
 	randomID, err := crypto.RandInt64(m.rand)
 	if err != nil {

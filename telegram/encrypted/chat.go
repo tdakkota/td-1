@@ -1,7 +1,6 @@
 package encrypted
 
 import (
-	"encoding/binary"
 	"math/big"
 
 	"github.com/gotd/td/internal/crypto"
@@ -14,12 +13,24 @@ type (
 	//
 	// See https://core.telegram.org/api/end-to-end/pfs.
 	ExchangeState struct {
+		// ExchangeID is last exchange id.
+		ExchangeID int64
 		// G is a g DH parameter.
 		G int
+		// GBig is a big.Int wrapper for g DH parameter.
+		GBig *big.Int
 		// P is a p DH parameter.
 		P *big.Int
 		// Key is message encryption key.
 		Key crypto.AuthKey
+		// NextKey is next encryption key.
+		//
+		// NB: non-zero only during key rotation.
+		NextKey crypto.AuthKey
+		// GAorB is stored g_a or g_b value.
+		//
+		// NB: non-zero only during key rotation.
+		GAorB *big.Int
 		// Originator denotes current user is creator.
 		Originator bool
 	}
@@ -70,6 +81,7 @@ func (c *Chat) init(
 	c.HisInSeq = 0
 	c.ExchangeState = ExchangeState{
 		G:          dhCfg.G,
+		GBig:       dhCfg.GBig,
 		P:          dhCfg.P,
 		Key:        key,
 		Originator: originator,
