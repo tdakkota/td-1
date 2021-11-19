@@ -4,8 +4,9 @@ import (
 	"io"
 	"sync"
 
-	"github.com/gotd/td/telegram/internal/dh"
 	"go.uber.org/zap"
+
+	"github.com/gotd/td/telegram/internal/dh"
 
 	"github.com/gotd/td/tg"
 )
@@ -13,8 +14,7 @@ import (
 // Manager manages encrypted chats state.
 type Manager struct {
 	raw      *tg.Client
-	storage  ChatStorage
-	messages MessageStorage
+	storage  Storage
 
 	accept  AcceptHandler
 	created CreatedHandler

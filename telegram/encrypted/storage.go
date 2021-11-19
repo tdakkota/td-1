@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"sync"
+
+	"github.com/gotd/td/tg/e2e"
 )
 
 // ChatTx is a chat transaction.
@@ -13,18 +15,36 @@ type ChatTx interface {
 	Close(ctx context.Context) error
 }
 
-// ChatStorage stores encrypted chats.
-type ChatStorage interface {
+// Storage stores encrypted chats.
+type Storage interface {
 	Save(ctx context.Context, chat Chat) error
 	Acquire(ctx context.Context, id int) (ChatTx, error)
 	FindByID(ctx context.Context, id int) (Chat, error)
 	Discard(ctx context.Context, id int) error
+
+	// Push adds message to the queue.
+	Push(ctx context.Context, chatID int, msg EnqueuedMessage) error
+	// GetFrom gets all messages by seqNo >= fromSeqNo.
+	GetFrom(ctx context.Context, chatID, fromSeqNo, toSeqNo int) ([]EnqueuedMessage, error)
+	// DeleteUntil deletes all messages with seqNo <= untilSeqNo.
+	DeleteUntil(ctx context.Context, chatID, untilSeqNo int) error
 }
 
-// ErrChatNotFound returned when storage does not contain chat with given ID.
-var ErrChatNotFound = errors.New("chat not found")
+// EnqueuedMessage is a stored message structure.
+type EnqueuedMessage struct {
+	SeqNo   int
+	Message e2e.DecryptedMessageClass
+}
 
-var _ ChatStorage = (*InmemoryStorage)(nil)
+var (
+	// ErrRangeInvalid denotes that range invalid or storage does not contain this messages.
+	ErrRangeInvalid = errors.New("range invalid")
+
+	// ErrChatNotFound returned when storage does not contain chat with given ID.
+	ErrChatNotFound = errors.New("chat not found")
+)
+
+var _ Storage = (*InmemoryStorage)(nil)
 
 type inmemoryChat struct {
 	mux  sync.Mutex
@@ -66,12 +86,16 @@ func (i *inmemoryTx) unlock() {
 type InmemoryStorage struct {
 	chats map[int]*inmemoryChat
 	mux   sync.Mutex
+
+	queues    map[int][]EnqueuedMessage
+	queuesMux sync.Mutex
 }
 
 // NewInmemoryStorage creates new InmemoryStorage.
 func NewInmemoryStorage() *InmemoryStorage {
 	return &InmemoryStorage{
-		chats: map[int]*inmemoryChat{},
+		chats:  map[int]*inmemoryChat{},
+		queues: map[int][]EnqueuedMessage{},
 	}
 }
 
@@ -130,5 +154,52 @@ func (i *InmemoryStorage) Discard(ctx context.Context, id int) error {
 	defer i.mux.Unlock()
 
 	delete(i.chats, id)
+	return nil
+}
+
+// Push adds message to the queue.
+func (i *InmemoryStorage) Push(ctx context.Context, chatID int, msg EnqueuedMessage) error {
+	i.queuesMux.Lock()
+	defer i.queuesMux.Unlock()
+
+	i.queues[chatID] = append(i.queues[chatID], msg)
+	return nil
+}
+
+// GetFrom gets all messages by seqNo >= fromSeqNo.
+func (i *InmemoryStorage) GetFrom(ctx context.Context, chatID, fromSeqNo, toSeqNo int) (r []EnqueuedMessage, _ error) {
+	i.queuesMux.Lock()
+	defer i.queuesMux.Unlock()
+
+	queue, ok := i.queues[chatID]
+	if !ok {
+		return nil, ErrChatNotFound
+	}
+
+	for _, msg := range queue {
+		if msg.SeqNo >= fromSeqNo {
+			r = append(r, msg)
+		}
+	}
+
+	return r, nil
+}
+
+// DeleteUntil deletes all messages with seqNo <= untilSeqNo.
+func (i *InmemoryStorage) DeleteUntil(ctx context.Context, chatID, untilSeqNo int) error {
+	i.queuesMux.Lock()
+	defer i.queuesMux.Unlock()
+	queue, ok := i.queues[chatID]
+	if !ok {
+		return nil
+	}
+	n := 0
+	for _, msg := range queue {
+		if msg.SeqNo <= untilSeqNo {
+			queue[n] = msg
+			n++
+		}
+	}
+	i.queues[chatID] = queue[:n]
 	return nil
 }

@@ -78,7 +78,7 @@ func (m *Manager) send(ctx context.Context, chatID int, msg e2e.DecryptedMessage
 		Message:     msg,
 	}
 
-	if err := m.messages.Push(ctx, chatID, EnqueuedMessage{
+	if err := m.storage.Push(ctx, chatID, EnqueuedMessage{
 		SeqNo:   outSeq,
 		Message: msg,
 	}); err != nil {

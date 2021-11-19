@@ -30,7 +30,7 @@ func (m *Manager) resendMessages(ctx context.Context, action *e2e.DecryptedMessa
 		action.StartSeqNo = chat.InSeq
 	}
 
-	msgs, err := m.messages.GetFrom(ctx, chat.ID, action.StartSeqNo, action.EndSeqNo)
+	msgs, err := m.storage.GetFrom(ctx, chat.ID, action.StartSeqNo, action.EndSeqNo)
 	if err != nil {
 		if errors.Is(err, ErrRangeInvalid) {
 

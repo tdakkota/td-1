@@ -31,7 +31,7 @@ type Options struct {
 	// Message is an encrypted message event handler.
 	Message MessageHandler
 	// Storage is a chat metadata storage. Defaults to InmemoryStorage.
-	Storage ChatStorage
+	Storage Storage
 	// Random is random source for key generation. Defaults to rand.Reader.
 	Random io.Reader
 	// Logger is instance of zap.Logger. No logs by default.
