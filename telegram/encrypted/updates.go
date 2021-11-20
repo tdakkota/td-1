@@ -83,7 +83,11 @@ func (m *Manager) OnNewEncryptedMessage(
 	default:
 	}
 
-	switch action, _ := getMessageAction(layer.Message); action := action.(type) {
+	action, ok := getMessageAction(layer.Message)
+	if ok {
+		logger.Debug("Handle action", zap.String("type", fmt.Sprintf("%T", action)))
+	}
+	switch action := action.(type) {
 	case *e2e.DecryptedMessageActionResend:
 		if err := m.resendMessages(ctx, action, chat, tx); err != nil {
 			return errors.Wrap(err, "resend messages")
