@@ -29,7 +29,7 @@ func (m *Manager) confirmChat(ctx context.Context, c *tg.EncryptedChat) (ch Chat
 
 	// key := pow(g_b, a) mod dh_prime
 	k := crypto.Key{}
-	if !crypto.FillBytes(big.NewInt(0).Exp(gB, chat.GAorB, chat.P), k[:]) {
+	if !crypto.FillBytes(big.NewInt(0).Exp(gB, chat.A, chat.P), k[:]) {
 		return Chat{}, errors.New("auth key is too big")
 	}
 	key := k.WithID()
@@ -39,6 +39,8 @@ func (m *Manager) confirmChat(ctx context.Context, c *tg.EncryptedChat) (ch Chat
 		return Chat{}, multierr.Append(err, m.DiscardChat(ctx, chatID, false))
 	}
 
+	chat.A = nil
+	chat.Key = key
 	if err := tx.Commit(ctx, chat); err != nil {
 		return Chat{}, errors.Errorf("save chat %d: %w", chatID, err)
 	}
@@ -78,13 +80,13 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 		return 0, errors.Wrap(err, "request chat")
 	}
 
-	requested, ok := result.(*tg.EncryptedChatRequested)
+	requested, ok := result.(*tg.EncryptedChatWaiting)
 	if !ok {
 		return 0, errors.Errorf("unexpected type %T", result)
 	}
 
 	var chat Chat
-	chat.requested(requested, gA, dhCfg)
+	chat.requested(requested, a, dhCfg)
 
 	if err := m.storage.Save(ctx, chat); err != nil {
 		return 0, errors.Wrap(err, "save requested chat")

@@ -15,11 +15,15 @@ type (
 	ExchangeState struct {
 		// ExchangeID is last exchange id.
 		ExchangeID int64
-		// G is a g DH parameter.
+		// A is a "a" DH parameter.
+		//
+		// NB: non-zero only during chat creation.
+		A *big.Int
+		// G is a "g" DH parameter.
 		G int
-		// GBig is a big.Int wrapper for g DH parameter.
+		// GBig is a big.Int wrapper for "g" DH parameter.
 		GBig *big.Int
-		// P is a p DH parameter.
+		// P is a "p" ("DHPrime") DH parameter.
 		P *big.Int
 		// Key is message encryption key.
 		Key crypto.AuthKey
@@ -65,8 +69,8 @@ type (
 )
 
 func (c *Chat) requested(
-	obj *tg.EncryptedChatRequested,
-	ga *big.Int,
+	obj *tg.EncryptedChatWaiting,
+	a *big.Int,
 	dhCfg dh.Config,
 ) {
 	c.fill(obj)
@@ -74,7 +78,7 @@ func (c *Chat) requested(
 		G:          dhCfg.G,
 		GBig:       dhCfg.GBig,
 		P:          dhCfg.P,
-		GAorB:      ga,
+		A:          a,
 		Originator: true,
 	}
 }
