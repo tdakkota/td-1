@@ -2,7 +2,6 @@ package encrypted
 
 import (
 	"io"
-	"sync"
 
 	"go.uber.org/zap"
 
@@ -13,15 +12,13 @@ import (
 
 // Manager manages encrypted chats state.
 type Manager struct {
-	raw      *tg.Client
-	storage  Storage
+	raw     *tg.Client
+	storage Storage
 
-	accept  AcceptHandler
+	accept  RequestHandler
+	discard DiscardedHandler
 	created CreatedHandler
 	message MessageHandler
-
-	requests    map[int]request
-	requestsMux sync.Mutex
 
 	dh *dh.State
 
@@ -34,12 +31,12 @@ func NewManager(raw *tg.Client, d tg.UpdateDispatcher, opts Options) *Manager {
 	opts.setDefaults()
 
 	m := &Manager{
-		raw:      raw,
-		storage:  opts.Storage,
-		accept:   opts.Accept,
-		created:  opts.Created,
-		message:  opts.Message,
-		requests: map[int]request{},
+		raw:     raw,
+		storage: opts.Storage,
+		accept:  opts.Request,
+		created: opts.Created,
+		discard: opts.Discarded,
+		message: opts.Message,
 		dh: dh.NewState(raw, dh.Options{
 			Random: opts.Random,
 			Logger: opts.Logger,

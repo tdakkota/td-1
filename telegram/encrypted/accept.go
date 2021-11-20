@@ -55,23 +55,23 @@ func (m *Manager) acceptChat(ctx context.Context, req *tg.EncryptedChatRequested
 		return Chat{}, err
 	}
 
-	switch chat := c.(type) {
+	switch obj := c.(type) {
 	case *tg.EncryptedChat:
-		var accepted Chat
-		accepted.init(chat, false, key, dhCfg)
+		var chat Chat
+		chat.accepted(obj, key, dhCfg)
 
-		if err := m.storage.Save(ctx, accepted); err != nil {
-			return Chat{}, errors.Wrap(err, "save chat")
+		if err := m.storage.Save(ctx, chat); err != nil {
+			return Chat{}, errors.Wrap(err, "save accepted chat")
 		}
 
-		if err := m.sendLayer(ctx, accepted.ID); err != nil {
+		if err := m.sendLayer(ctx, chat.ID); err != nil {
 			return Chat{}, errors.Wrap(err, "notify layer")
 		}
 
-		return accepted, nil
+		return chat, nil
 	case *tg.EncryptedChatDiscarded:
-		return Chat{}, &ChatDiscardedError{Chat: chat}
+		return Chat{}, &ChatDiscardedError{Chat: obj}
 	default:
-		return Chat{}, errors.Errorf("unexpected type %T", chat)
+		return Chat{}, errors.Errorf("unexpected type %T", obj)
 	}
 }

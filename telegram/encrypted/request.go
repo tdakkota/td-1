@@ -12,8 +12,42 @@ import (
 	"github.com/gotd/td/tg"
 )
 
-type request struct {
-	result chan tg.EncryptedChatClass
+func (m *Manager) confirmChat(ctx context.Context, c *tg.EncryptedChat) (ch Chat, rErr error) {
+	tx, err := m.storage.Acquire(ctx, c.ID)
+	if err != nil {
+		return Chat{}, errors.Wrap(err, "acquire")
+	}
+	defer func() {
+		if rErr != nil {
+			multierr.AppendInto(&rErr, tx.Close(ctx))
+		}
+	}()
+	chat := tx.Get()
+	chatID := chat.ID
+
+	gB := big.NewInt(0).SetBytes(c.GAOrB)
+
+	// key := pow(g_b, a) mod dh_prime
+	k := crypto.Key{}
+	if !crypto.FillBytes(big.NewInt(0).Exp(gB, chat.GAorB, chat.P), k[:]) {
+		return Chat{}, errors.New("auth key is too big")
+	}
+	key := k.WithID()
+
+	if key.IntID() != c.KeyFingerprint {
+		err := errors.New("key fingerprint mismatch")
+		return Chat{}, multierr.Append(err, m.DiscardChat(ctx, chatID, false))
+	}
+
+	if err := tx.Commit(ctx, chat); err != nil {
+		return Chat{}, errors.Errorf("save chat %d: %w", chatID, err)
+	}
+
+	if err := m.sendLayer(ctx, chatID); err != nil {
+		return Chat{}, errors.Wrap(err, "notify layer")
+	}
+
+	return ch, nil
 }
 
 // RequestChat requests new encrypted chat and returns chat ID.
@@ -22,7 +56,7 @@ type request struct {
 func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int, error) {
 	a, dhCfg, err := m.dh.Init(ctx)
 	if err != nil {
-		return 0, errors.Wrap(err,"init DH")
+		return 0, errors.Wrap(err, "init DH")
 	}
 
 	g := dhCfg.GBig
@@ -31,69 +65,30 @@ func (m *Manager) RequestChat(ctx context.Context, user tg.InputUserClass) (int,
 
 	randomID, err := crypto.RandInt64(m.rand)
 	if err != nil {
-		return 0, errors.Wrap(err,"generate random ID")
+		return 0, errors.Wrap(err, "generate random ID")
 	}
 
 	m.logger.Debug("Request chat", zap.Int64("random_id", randomID))
-	m.requestsMux.Lock()
-	requested, err := m.raw.MessagesRequestEncryption(ctx, &tg.MessagesRequestEncryptionRequest{
+	result, err := m.raw.MessagesRequestEncryption(ctx, &tg.MessagesRequestEncryptionRequest{
 		UserID:   user,
 		RandomID: int(randomID),
 		GA:       gA.Bytes(),
 	})
 	if err != nil {
-		m.requestsMux.Unlock()
-		return 0, errors.Wrap(err,"request chat")
+		return 0, errors.Wrap(err, "request chat")
 	}
-	chatID := requested.GetID()
 
-	result := make(chan tg.EncryptedChatClass, 1)
-	m.requests[chatID] = request{
-		result: result,
+	requested, ok := result.(*tg.EncryptedChatRequested)
+	if !ok {
+		return 0, errors.Errorf("unexpected type %T", result)
 	}
-	m.requestsMux.Unlock()
-	defer func() {
-		m.requestsMux.Lock()
-		delete(m.requests, chatID)
-		m.requestsMux.Unlock()
-	}()
 
-	select {
-	case <-ctx.Done():
-		return 0, ctx.Err()
-	case r := <-result:
-		switch c := r.(type) {
-		case *tg.EncryptedChat:
-			gB := big.NewInt(0).SetBytes(c.GAOrB)
+	var chat Chat
+	chat.requested(requested, gA, dhCfg)
 
-			// key := pow(g_b, a) mod dh_prime
-			k := crypto.Key{}
-			if !crypto.FillBytes(big.NewInt(0).Exp(gB, a, dhPrime), k[:]) {
-				return 0, errors.New("auth key is too big")
-			}
-			key := k.WithID()
-
-			if key.IntID() != c.KeyFingerprint {
-				err := errors.New("key fingerprint mismatch")
-				return 0, multierr.Append(err, m.DiscardChat(ctx, chatID, false))
-			}
-
-			var created Chat
-			created.init(c, true, key, dhCfg)
-
-			if err := m.storage.Save(ctx, created); err != nil {
-				return 0, errors.Wrap(err,"save chat")
-			}
-
-			if err := m.sendLayer(ctx, chatID); err != nil {
-				return 0, errors.Wrap(err,"notify layer")
-			}
-
-			return chatID, nil
-		case *tg.EncryptedChatDiscarded:
-			return 0, &ChatDiscardedError{Chat: c}
-		default:
-			return 0, errors.Errorf("unexpected type %T", c)
-		}
+	if err := m.storage.Save(ctx, chat); err != nil {
+		return 0, errors.Wrap(err, "save requested chat")
 	}
+
+	return result.GetID(), nil
 }

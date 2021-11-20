@@ -12,8 +12,11 @@ import (
 )
 
 type (
-	// AcceptHandler is a chat request event handler type.
-	AcceptHandler func(context.Context, tg.Entities, *tg.EncryptedChatRequested) (bool, error)
+	// RequestHandler is a chat request event handler type.
+	RequestHandler func(context.Context, tg.Entities, *tg.EncryptedChatRequested) (bool, error)
+
+	// DiscardedHandler is a chat discard event handler type.
+	DiscardedHandler func(context.Context, tg.Entities, *tg.EncryptedChatDiscarded) error
 
 	// CreatedHandler is a chat creation event handler type.
 	CreatedHandler func(context.Context, Chat) error
@@ -24,8 +27,10 @@ type (
 
 // Options is Manager options.
 type Options struct {
-	// Accept is a chat request event handler.
-	Accept AcceptHandler
+	// Request is a chat request event handler.
+	Request RequestHandler
+	// Discarded is a chat discard event handler.
+	Discarded DiscardedHandler
 	// Created is a chat creation event handler.
 	Created CreatedHandler
 	// Message is an encrypted message event handler.
@@ -39,10 +44,16 @@ type Options struct {
 }
 
 func (m *Options) setDefaults() {
-	if m.Accept == nil {
-		m.Accept = func(context.Context, tg.Entities, *tg.EncryptedChatRequested) (bool, error) {
+	if m.Request == nil {
+		m.Request = func(context.Context, tg.Entities, *tg.EncryptedChatRequested) (bool, error) {
 			// Reject all.
 			return false, nil
+		}
+	}
+	if m.Discarded == nil {
+		m.Discarded = func(context.Context, tg.Entities, *tg.EncryptedChatDiscarded) error {
+			// No-op.
+			return nil
 		}
 	}
 	if m.Created == nil {

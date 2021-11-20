@@ -121,30 +121,28 @@ func (m *Manager) OnNewEncryptedMessage(
 	return m.message(ctx, chat, layer.Message)
 }
 
-func (m *Manager) notifyNewChat(id int, c tg.EncryptedChatClass) {
-	m.requestsMux.Lock()
-	req, ok := m.requests[id]
-	delete(m.requests, id)
-	m.requestsMux.Unlock()
-	if !ok {
-		return
-	}
-
-	select {
-	case req.result <- c:
-	default:
-	}
-}
-
 func (m *Manager) OnEncryption(ctx context.Context, e tg.Entities, update *tg.UpdateEncryption) error {
 	switch c := update.Chat.(type) {
 	case *tg.EncryptedChat:
 		m.logger.Debug("Chat accepted", zap.Int("chat_id", c.ID))
-		m.notifyNewChat(c.ID, c)
+
+		chat, err := m.confirmChat(ctx, c)
+		if err != nil {
+			return errors.Wrap(err, "confirm")
+		}
+
+		if err := m.created(ctx, chat); err != nil {
+			return errors.Wrap(err, "created handler")
+		}
+
 		return nil
 	case *tg.EncryptedChatDiscarded:
 		m.logger.Debug("Chat discarded", zap.Int("chat_id", c.ID))
-		m.notifyNewChat(c.ID, c)
+
+		if err := m.discard(ctx, e, c); err != nil {
+			return errors.Wrap(err, "discarded handler")
+		}
+
 		return nil
 	case *tg.EncryptedChatRequested:
 		accepted, err := m.accept(ctx, e, c)

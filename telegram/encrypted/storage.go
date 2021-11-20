@@ -10,16 +10,23 @@ import (
 
 // ChatTx is a chat transaction.
 type ChatTx interface {
+	// Get returns chat state.
 	Get() Chat
+	// Commit applies changes.
 	Commit(ctx context.Context, ch Chat) error
+	// Close closes transaction.
 	Close(ctx context.Context) error
 }
 
 // Storage stores encrypted chats.
 type Storage interface {
+	// Save saves chat to storage.
 	Save(ctx context.Context, chat Chat) error
+	// Acquire creates new chat transaction.
 	Acquire(ctx context.Context, id int) (ChatTx, error)
+	// FindByID finds chat by ID.
 	FindByID(ctx context.Context, id int) (Chat, error)
+	// Discard marks chat as discarded.
 	Discard(ctx context.Context, id int) error
 
 	// Push adds message to the queue.

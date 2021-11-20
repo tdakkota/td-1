@@ -64,28 +64,56 @@ type (
 	}
 )
 
-func (c *Chat) init(
+func (c *Chat) requested(
+	obj *tg.EncryptedChatRequested,
+	ga *big.Int,
+	dhCfg dh.Config,
+) {
+	c.fill(obj)
+	c.ExchangeState = ExchangeState{
+		G:          dhCfg.G,
+		GBig:       dhCfg.GBig,
+		P:          dhCfg.P,
+		GAorB:      ga,
+		Originator: true,
+	}
+}
+
+func (c *Chat) accepted(
 	obj *tg.EncryptedChat,
-	originator bool,
 	key crypto.AuthKey,
 	dhCfg dh.Config,
 ) {
-	c.ID = obj.ID
-	c.AccessHash = obj.AccessHash
-	c.Layer = minLayer
-	c.Date = obj.Date
-	c.AdminID = obj.AdminID
-	c.ParticipantID = obj.ParticipantID
-	c.InSeq = 0
-	c.OutSeq = 0
-	c.HisInSeq = 0
+	c.fill(obj)
 	c.ExchangeState = ExchangeState{
 		G:          dhCfg.G,
 		GBig:       dhCfg.GBig,
 		P:          dhCfg.P,
 		Key:        key,
-		Originator: originator,
+		Originator: false,
 	}
+}
+
+func (c *Chat) created(obj *tg.EncryptedChat) {
+	c.fill(obj)
+}
+
+func (c *Chat) fill(obj interface {
+	GetID() int
+	GetAccessHash() int64
+	GetDate() int
+	GetAdminID() int64
+	GetParticipantID() int64
+}) {
+	c.ID = obj.GetID()
+	c.AccessHash = obj.GetAccessHash()
+	c.Layer = minLayer
+	c.Date = obj.GetDate()
+	c.AdminID = obj.GetAdminID()
+	c.ParticipantID = obj.GetParticipantID()
+	c.InSeq = 0
+	c.OutSeq = 0
+	c.HisInSeq = 0
 }
 
 // seqNo returns a pair of incoming and outgoing messages sequence numbers.
