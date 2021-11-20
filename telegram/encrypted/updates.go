@@ -93,19 +93,19 @@ func (m *Manager) OnNewEncryptedMessage(
 			return errors.Wrap(err, "update layer")
 		}
 	case *e2e.DecryptedMessageActionRequestKey:
-		if err := m.requestKey(ctx, action, chat, tx); err != nil {
+		if err := m.onRequestKey(ctx, action, chat, tx); err != nil {
 			return errors.Wrap(err, "handle request key")
 		}
 	case *e2e.DecryptedMessageActionAcceptKey:
-		if err := m.acceptKey(ctx, action, chat, tx); err != nil {
+		if err := m.onAcceptKey(ctx, action, chat, tx); err != nil {
 			return errors.Wrap(err, "handle accept key")
 		}
 	case *e2e.DecryptedMessageActionCommitKey:
-		if err := m.commitKey(ctx, action, chat, tx); err != nil {
+		if err := m.onCommitKey(ctx, action, chat, tx); err != nil {
 			return errors.Wrap(err, "handle commit key")
 		}
 	case *e2e.DecryptedMessageActionAbortKey:
-		if err := m.abortKey(ctx, action, chat, tx); err != nil {
+		if err := m.onAbortKey(ctx, action, chat, tx); err != nil {
 			return errors.Wrap(err, "handle abort key")
 		}
 	default:
