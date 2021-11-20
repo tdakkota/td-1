@@ -14,8 +14,7 @@ import (
 )
 
 // See https://github.com/DrKLO/Telegram/blob/master/TMessagesProj/src/main/java/org/telegram/messenger/SecretChatHelper.java#L1318-L1324.
-func (m *Manager) resendMessages(ctx context.Context, action *e2e.DecryptedMessageActionResend, tx ChatTx) error {
-	chat := tx.Get()
+func (m *Manager) resendMessages(ctx context.Context, action *e2e.DecryptedMessageActionResend, chat Chat, tx ChatTx) error {
 	m.logger.Debug("Re-sending messages",
 		zap.Int("chat_id", chat.ID),
 		zap.Int("start_seq_no", action.StartSeqNo),
@@ -55,23 +54,22 @@ func (m *Manager) resendMessages(ctx context.Context, action *e2e.DecryptedMessa
 	return nil
 }
 
-func (m *Manager) updateLayer(ctx context.Context, action *e2e.DecryptedMessageActionNotifyLayer, tx ChatTx) error {
-	chat := tx.Get()
+func (m *Manager) updateLayer(ctx context.Context, action *e2e.DecryptedMessageActionNotifyLayer, chat Chat, tx ChatTx) error {
 	chatID := chat.ID
 
+	log := m.logger.With(
+		zap.Int("chat_id", chatID),
+		zap.Int("new_layer", action.Layer),
+	)
 	switch newLayer := action.Layer; {
 	case newLayer < chat.Layer:
-		m.logger.Warn("Other client decreased version",
-			zap.Int("chat_id", chatID),
-			zap.Int("layer", newLayer),
-		)
+		log.Warn("Other client decreased version")
 	case newLayer < minLayer:
-		m.logger.Warn("Other client sent too old layer",
-			zap.Int("chat_id", chatID),
-			zap.Int("layer", newLayer),
+		log.Warn("Other client sent too old layer",
 			zap.Int("min_layer", minLayer),
 		)
 	default:
+		log.Info("Updating layer", zap.Int("old_layer", chat.Layer))
 		chat.Layer = action.Layer
 	}
 
@@ -105,8 +103,7 @@ func (m *Manager) acceptKeyExchange(
 	})
 }
 
-func (m *Manager) requestKey(ctx context.Context, action *e2e.DecryptedMessageActionRequestKey, tx ChatTx) error {
-	chat := tx.Get()
+func (m *Manager) requestKey(ctx context.Context, action *e2e.DecryptedMessageActionRequestKey, chat Chat, tx ChatTx) error {
 	chatID := chat.ID
 
 	storedID := chat.ExchangeID
@@ -175,8 +172,12 @@ func (m *Manager) commitKeyExchange(
 	})
 }
 
-func (m *Manager) acceptKey(ctx context.Context, action *e2e.DecryptedMessageActionAcceptKey, tx ChatTx) error {
-	chat := tx.Get()
+func (m *Manager) acceptKey(
+	ctx context.Context,
+	action *e2e.DecryptedMessageActionAcceptKey,
+	chat Chat,
+	tx ChatTx,
+) error {
 	chatID := chat.ID
 
 	abort := func(err error, level zapcore.Level, msg string, fields ...zap.Field) error {
@@ -247,8 +248,12 @@ func (m *Manager) acceptKey(ctx context.Context, action *e2e.DecryptedMessageAct
 	return nil
 }
 
-func (m *Manager) commitKey(ctx context.Context, action *e2e.DecryptedMessageActionCommitKey, tx ChatTx) error {
-	chat := tx.Get()
+func (m *Manager) commitKey(
+	ctx context.Context,
+	action *e2e.DecryptedMessageActionCommitKey,
+	chat Chat,
+	tx ChatTx,
+) error {
 	chatID := chat.ID
 
 	if action.ExchangeID != chat.ExchangeID ||
@@ -281,5 +286,23 @@ func (m *Manager) commitKey(ctx context.Context, action *e2e.DecryptedMessageAct
 		return errors.Wrap(err, "send noop")
 	}
 
+	return nil
+}
+
+func (m *Manager) abortKey(
+	ctx context.Context,
+	action *e2e.DecryptedMessageActionAbortKey,
+	chat Chat,
+	tx ChatTx,
+) error {
+	chatID := chat.ID
+
+	if action.ExchangeID == chat.ExchangeID {
+		chat.resetExchange()
+	}
+
+	if err := tx.Commit(ctx, chat); err != nil {
+		return errors.Errorf("save chat %d: %w", chatID, err)
+	}
 	return nil
 }

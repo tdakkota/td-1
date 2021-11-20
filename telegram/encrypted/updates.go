@@ -85,23 +85,29 @@ func (m *Manager) OnNewEncryptedMessage(
 
 	switch action, _ := getMessageAction(layer.Message); action := action.(type) {
 	case *e2e.DecryptedMessageActionResend:
-		if err := m.resendMessages(ctx, action, tx); err != nil {
+		if err := m.resendMessages(ctx, action, chat, tx); err != nil {
 			return errors.Wrap(err, "resend messages")
 		}
 	case *e2e.DecryptedMessageActionNotifyLayer:
-		if err := m.updateLayer(ctx, action, tx); err != nil {
+		if err := m.updateLayer(ctx, action, chat, tx); err != nil {
 			return errors.Wrap(err, "update layer")
 		}
 	case *e2e.DecryptedMessageActionRequestKey:
-		if err := m.requestKey(ctx, action, tx); err != nil {
-			return errors.Wrap(err, "handle rotation request")
+		if err := m.requestKey(ctx, action, chat, tx); err != nil {
+			return errors.Wrap(err, "handle request key")
 		}
 	case *e2e.DecryptedMessageActionAcceptKey:
-		if err := m.acceptKey(ctx, action, tx); err != nil {
-			return errors.Wrap(err, "handle rotation request")
+		if err := m.acceptKey(ctx, action, chat, tx); err != nil {
+			return errors.Wrap(err, "handle accept key")
 		}
-	// case *e2e.DecryptedMessageActionAbortKey:
-	// case *e2e.DecryptedMessageActionCommitKey:
+	case *e2e.DecryptedMessageActionCommitKey:
+		if err := m.commitKey(ctx, action, chat, tx); err != nil {
+			return errors.Wrap(err, "handle commit key")
+		}
+	case *e2e.DecryptedMessageActionAbortKey:
+		if err := m.abortKey(ctx, action, chat, tx); err != nil {
+			return errors.Wrap(err, "handle abort key")
+		}
 	default:
 		if err := tx.Commit(ctx, chat); err != nil {
 			return errors.Errorf("save chat %d: %w", chat.ID, err)
