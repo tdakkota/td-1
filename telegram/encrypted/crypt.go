@@ -57,7 +57,7 @@ func (c *ExchangeState) decrypt(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "get messageDataLen")
 	}
-	if l := buf.Len(); l < messageDataLen {
+	if l := buf.Len(); l < messageDataLen || messageDataLen < 0 {
 		return nil, errors.Errorf("buffer too small (%d < %d)", l, messageDataLen)
 	}
 
