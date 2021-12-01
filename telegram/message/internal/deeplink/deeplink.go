@@ -59,12 +59,12 @@ func (d DeepLink) validate() error {
 func parseTg(u *url.URL) (DeepLink, error) {
 	query := u.Query()
 	switch Type(u.Hostname()) {
-	case Resolve:
+	case "resolve":
 		return DeepLink{
 			Type: Resolve,
 			Args: query,
 		}, nil
-	case Join:
+	case "join":
 		return DeepLink{
 			Type: Join,
 			Args: query,

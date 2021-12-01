@@ -44,8 +44,11 @@ func joinSuite() map[string][]testCase {
 			{expect, `tg:join?invite=AAAAAAAAAAAAAAAAAA`, false},
 			{expect, `tg://join?invite=AAAAAAAAAAAAAAAAAA`, false},
 
+			{DeepLink{}, ``, true},
+			{DeepLink{}, `:`, true},
 			{DeepLink{}, `https://t.co/joinchat/AAAAAAAAAAAAAAAAAA`, true},
 			{DeepLink{}, `rt://join?invite=AAAAAAAAAAAAAAAAAA`, true},
+			{DeepLink{}, `tg://aboba`, true},
 		},
 		"TDLib": {
 			// t.me/+<hash>
@@ -129,7 +132,7 @@ var typeSuites = map[string]map[string][]testCase{
 	"Resolve": resolveSuite(),
 }
 
-func TestParseDeeplink(t *testing.T) {
+func TestParse(t *testing.T) {
 	runSuite := func(suite []testCase) func(t *testing.T) {
 		return func(t *testing.T) {
 			for i, test := range suite {
@@ -152,6 +155,30 @@ func TestParseDeeplink(t *testing.T) {
 		t.Run(typeName, func(t *testing.T) {
 			for suiteName, suite := range typeSuite {
 				t.Run(suiteName, runSuite(suite))
+			}
+		})
+	}
+}
+
+func TestExpect(t *testing.T) {
+	tests := []struct {
+		name    string
+		link    string
+		typ     Type
+		wantErr bool
+	}{
+		{"BadLInk", `:`, Resolve, true},
+		{"ExpectResolveOK", `t.me/gotd_ru`, Resolve, false},
+		{"ExpectResolveErr", `t.me/joinchat/AAAAAAAAAAAAAAAAAA`, Resolve, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := require.New(t)
+			_, err := Expect(tt.link, tt.typ)
+			if tt.wantErr {
+				a.Error(err)
+			} else {
+				a.NoError(err)
 			}
 		})
 	}
