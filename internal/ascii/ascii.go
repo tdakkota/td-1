@@ -17,3 +17,8 @@ func IsLatinLower(r rune) bool {
 	r |= 0x20
 	return 'a' <= r && r <= 'z'
 }
+
+// IsSpace reports whether the rune is ASCII space character.
+func IsSpace(r rune) bool {
+	return r == ' ' || r == '\n' || r == '\r' || r == '\t' || r == '\v' || r == 0
+}

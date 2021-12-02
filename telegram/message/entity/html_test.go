@@ -10,43 +10,43 @@ import (
 	"github.com/gotd/td/tg"
 )
 
-func TestHTML(t *testing.T) {
-	getEnities := func(formats ...Formatter) func(msg string) []tg.MessageEntityClass {
-		return func(msg string) []tg.MessageEntityClass {
-			length := ComputeLength(msg)
-			r := make([]tg.MessageEntityClass, len(formats))
-			for i := range formats {
-				r[i] = formats[i](0, length)
-			}
-			return r
+func getEntities(formats ...Formatter) func(msg string) []tg.MessageEntityClass {
+	return func(msg string) []tg.MessageEntityClass {
+		length := ComputeLength(msg)
+		r := make([]tg.MessageEntityClass, len(formats))
+		for i := range formats {
+			r[i] = formats[i](0, length)
 		}
+		return r
 	}
+}
 
+func TestHTML(t *testing.T) {
 	tests := []struct {
 		html     string
 		msg      string
 		entities func(msg string) []tg.MessageEntityClass
 	}{
-		{"<b>bold</b>", "bold", getEnities(Bold())},
-		{"<strong>bold</strong>", "bold", getEnities(Bold())},
-		{"<i>italic</i>", "italic", getEnities(Italic())},
-		{"<em>italic</em>", "italic", getEnities(Italic())},
-		{"<u>underline</u>", "underline", getEnities(Underline())},
-		{"<ins>underline</ins>", "underline", getEnities(Underline())},
-		{"<s>strikethrough</s>", "strikethrough", getEnities(Strike())},
-		{"<strike>strikethrough</strike>", "strikethrough", getEnities(Strike())},
-		{"<del>strikethrough</del>", "strikethrough", getEnities(Strike())},
-		{"<code>code</code>", "code", getEnities(Code())},
-		{"<pre>abc</pre>", "abc", getEnities(Code())},
+		{"<b>bold</b>", "bold", getEntities(Bold())},
+		{"<strong>bold</strong>", "bold", getEntities(Bold())},
+		{"<i>italic</i>", "italic", getEntities(Italic())},
+		{"<em>italic</em>", "italic", getEntities(Italic())},
+		{"<u>underline</u>", "underline", getEntities(Underline())},
+		{"<ins>underline</ins>", "underline", getEntities(Underline())},
+		{"<s>strikethrough</s>", "strikethrough", getEntities(Strike())},
+		{"<strike>strikethrough</strike>", "strikethrough", getEntities(Strike())},
+		{"<del>strikethrough</del>", "strikethrough", getEntities(Strike())},
+		{"<code>code</code>", "code", getEntities(Code())},
+		{"<pre>abc</pre>", "abc", getEntities(Code())},
 		{`<a href="http://www.example.com/">inline URL</a>`, "inline URL",
-			getEnities(TextURL("http://www.example.com/"))},
+			getEntities(TextURL("http://www.example.com/"))},
 		{`<a href="tg://user?id=123456789">inline mention of a user</a>`, "inline mention of a user",
-			getEnities(MentionName(&tg.InputUser{
+			getEntities(MentionName(&tg.InputUser{
 				UserID: 123456789,
 			}))},
 		{`<pre><code class="language-python">python code</code></pre>`, "python code",
-			getEnities(Pre("python"), Code())},
-		{"<b>&lt;</b>", "<", getEnities(Bold())},
+			getEntities(Pre("python"), Code())},
+		{"<b>&lt;</b>", "<", getEntities(Bold())},
 	}
 
 	for _, test := range tests {
